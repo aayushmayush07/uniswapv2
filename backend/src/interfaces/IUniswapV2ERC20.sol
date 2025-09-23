@@ -1,30 +1,48 @@
 //SPDX-License-Identifier:MIT
 
-pragma solidity  >=0.5.0;
+pragma solidity ^0.8.18;
 
-
-interface IUniswapV2ERC20{
-    event Approval(address indexed owner,address indexed spender, uint value);
+interface IUniswapV2ERC20 {
+    event Approval(address indexed owner, address indexed spender, uint value);
     event Transfer(address indexed from, address indexed to, uint value);
 
+    function name() external pure returns (string memory);
 
+    function symbol() external pure returns (string memory);
 
-    function name() external pure returns(string memory);
-    function symbol() external pure returns(string memory);
-    function decimals() external pure returns(uint8);
-    function totalSupply() external view returns(uint256);
-    function allowance(address owner,address spender) external view returns(uint);
+    function decimals() external pure returns (uint8);
 
-    function approve(address spender, uint value) external view returns(uint);
-    function transfer(address to, uint value) external returns(bool);
-    function transferFrom(address from,address to,uint value) external returns(bool);
+    function totalSupply() external view returns (uint256);
 
-//these are the extra functions like a cheque 
-    function DOMAIN_SEPARATOR() external view returns(bytes32);
-    function PERMIT_TYPEHASH() external pure returns(bytes32);
+    function allowance(
+        address owner,
+        address spender
+    ) external view returns (uint);
 
-    function nonces(address owner) external view returns(uint);
+    function approve(address spender, uint value) external returns (bool);
 
-    function permit(address owner,address spender,uint value,uint deadline,uint8 v, bytes32 r, bytes32 s) external;
+    function transfer(address to, uint value) external returns (bool);
 
+    function transferFrom(
+        address from,
+        address to,
+        uint value
+    ) external returns (bool);
+
+    //these are the extra functions like a cheque
+    function DOMAIN_SEPARATOR() external view returns (bytes32);
+
+    function PERMIT_TYPEHASH() external pure returns (bytes32);
+
+    function nonces(address owner) external view returns (uint);
+
+    function permit(
+        address owner,
+        address spender,
+        uint value,
+        uint deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external;
 }
