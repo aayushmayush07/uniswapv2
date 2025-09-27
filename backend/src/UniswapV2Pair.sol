@@ -9,8 +9,8 @@ import "./interfaces/IUniswapV2Factory.sol";
 import "./interfaces/IUniswapV2Callee.sol";
 import "./libraries/Math.sol";
 
-contract UniswapPair is IUniswapV2Pair, UniswapV2ERC20 {
-    uint public MINIMUM_LIQUIDITY = 10 ** 3;
+contract UniswapV2Pair is  UniswapV2ERC20,IUniswapV2Pair {
+    uint public constant MINIMUM_LIQUIDITY = 10 ** 3;
     bytes4 private constant SELECTOR =
         bytes4(keccak256(bytes("transfer(address,uint256)")));
 
@@ -22,7 +22,7 @@ contract UniswapPair is IUniswapV2Pair, UniswapV2ERC20 {
     uint112 private reserve1; //14 bytes  //These three consumes only single storage slow
     uint32 private blockTimeStampLast; //4 bytes
 
-    uint price0CumulativeLast;
+    uint public price0CumulativeLast;
     uint public price1CumulativeLast;
 
     uint public kLast;
@@ -58,23 +58,7 @@ contract UniswapPair is IUniswapV2Pair, UniswapV2ERC20 {
         );
     }
 
-    event Mint(address indexed sender, uint amount0, uint amount1);
-    event Burn(
-        address indexed sender,
-        uint amount0,
-        uint amount1,
-        address indexed to
-    );
-    event Swap(
-        address indexed sender,
-        uint amount0In,
-        uint amount1In,
-        uint amount0Out,
-        uint amount1Out,
-        address indexed to
-    );
 
-    event Sync(uint112 reserve0, uint112 reserve1);
 
     constructor() {
         factory = msg.sender;
@@ -171,7 +155,7 @@ contract UniswapPair is IUniswapV2Pair, UniswapV2ERC20 {
         _update(balance0, balance1, _reserve0, _reserve1);
 
         if (feeOn) {
-            klast = uint(reserve0) * uint(reserve1);
+            kLast = uint(reserve0) * uint(reserve1);
         }
         emit Mint(msg.sender, amount0, amount1);
     }
@@ -208,7 +192,7 @@ function burn(address to) external lock returns (uint amount0, uint amount1) {
 
 function swap(uint amount0Out,uint amount1Out,address to,bytes calldata data) external lock{
     require(amount0Out>0 || amount1Out>0 ,'UniswapV2:INSUFFICIENT_OUTPUT_AMOUNT');
-    (uint112 _reserve-, uint112 _reserve1,)=getReserves();
+    (uint112 _reserve0, uint112 _reserve1,)=getReserves();
     require(amount0Out<_reserve0 && amount1Out<_reserve1,'UniswapV2:INSUFFICIENT_LIQUIDITY');
 
 
@@ -242,18 +226,18 @@ function swap(uint amount0Out,uint amount1Out,address to,bytes calldata data) ex
 
 
     _update(balance0,balance1,_reserve0,_reserve1);
-    emit Swap(msg.sender,amount0In,amount1In,amount0Out,amount1Out,to);
+    emit Swap(msg.sender,amount0In,amount1In,to);
 
 
 
-
+}
 
 
 function skim(address to ) external lock{
     address _token0=token0;
     address _token1=token1;
     _safeTransfer(_token0,to,IERC20(_token0).balanceOf(address(this))-reserve0);
-    _safeTransfer(_token1,to,IERC20(_token1).balanceOf(address(this)-reserve1));
+    _safeTransfer(_token1,to,IERC20(_token1).balanceOf(address(this))-reserve1);
 
 
 
@@ -267,4 +251,3 @@ function sync() external lock{
 
 
 
-}
