@@ -1,4 +1,5 @@
-pragma solidity =0.5.16;
+//SPDX-License-Identifier:MIT
+pragma solidity ^0.8.18;
 
 // a library for performing various math operations
 
@@ -21,3 +22,4 @@ library Math {
         }
     }
 }
+
