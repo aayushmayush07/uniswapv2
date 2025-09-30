@@ -10,7 +10,7 @@ import "./interfaces/IUniswapV2Callee.sol";
 import "./libraries/Math.sol";
 
 contract UniswapV2Pair is  UniswapV2ERC20,IUniswapV2Pair {
-    uint public constant MINIMUM_LIQUIDITY = 10 ** 3;
+    uint public constant MINIMUM_LIQUIDITY = 10 ** 3 ;
     bytes4 private constant SELECTOR =
         bytes4(keccak256(bytes("transfer(address,uint256)")));
 
@@ -168,7 +168,7 @@ function burn(address to) external lock returns (uint amount0, uint amount1) {
 
     uint balance0 = IERC20(token0).balanceOf(address(this)); //address of smart contract is getting called becaue its the router that first add lp token in contract then burns using burn
     uint balance1 = IERC20(token1).balanceOf(address(this));
-    uint liquidity = balanceOf[address(this)];
+    uint liquidity = balanceOf[address(this)]; //number of lptoken
 
     bool feeOn = _mintFee(_reserve0, _reserve1);
     uint _totalSupply = totalSupply;
@@ -184,7 +184,7 @@ function burn(address to) external lock returns (uint amount0, uint amount1) {
     _safeTransfer(_token1, to, amount1);
 
     _update(balance0, balance1, _reserve0, _reserve1);
-    if (feeOn) kLast - uint(reserve0) * uint(reserve1);
+    if (feeOn) kLast = uint(reserve0) * uint(reserve1);
 
     emit Burn(msg.sender, amount0, amount1, to);
 }

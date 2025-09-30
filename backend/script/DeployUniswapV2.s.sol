@@ -5,12 +5,13 @@ import "forge-std/Script.sol";
 import "../src/UniswapV2Factory.sol";
 import "../test/mocks/TestERC20Mock.sol";
 
-
 contract DeployUniswapV2 is Script {
     UniswapV2Factory public factory;
     MockERC20 public tokenA; //ETH
     MockERC20 public tokenB; //USDC
     address public pair;
+    address public deployer;
+
     function run() external {
         uint256 chainId = block.chainid;
         uint256 deployerPrivateKey;
@@ -28,13 +29,14 @@ contract DeployUniswapV2 is Script {
             revert("Unsupported chain  add your key mapping");
         }
 
+        deployer = vm.addr(deployerPrivateKey);
         vm.startBroadcast(deployerPrivateKey);
         // 1. Deploy Factory
-        factory = new UniswapV2Factory(msg.sender);
+        factory = new UniswapV2Factory(deployer);
 
         // 2. Deploy mock tokens
         tokenA = new MockERC20("EthereumToken", "ETH", 100000 ether);
-        tokenB = new MockERC20("DollarToken", "USDC", 10000000 ether);
+        tokenB = new MockERC20("DollarToken", "USDC", 100000000 ether);
 
         //Create pair
         pair = factory.createPair(address(tokenA), address(tokenB));
@@ -44,6 +46,7 @@ contract DeployUniswapV2 is Script {
         console2.log("TokenA deployed at:", address(tokenA));
         console2.log("TokenB deployed at:", address(tokenB));
         console2.log("Pair deployed at:", pair);
+        console2.log("Deployer address:", deployer);
 
         vm.stopBroadcast();
     }
