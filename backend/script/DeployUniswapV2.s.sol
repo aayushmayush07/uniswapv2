@@ -2,7 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/Script.sol";
-import "../src/UniswapV2Factory.sol";
+import "../src/core/UniswapV2Factory.sol";
 import "../test/mocks/TestERC20Mock.sol";
 
 contract DeployUniswapV2 is Script {

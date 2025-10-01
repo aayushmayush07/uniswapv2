@@ -20,22 +20,22 @@ contract UniswapV2UnitTest is Test {
         ETH = deploy.tokenA();
         USDC = deploy.tokenB();
         pair = UniswapV2Pair(deploy.pair());
-        deployer =deploy.deployer();
+        deployer = deploy.deployer();
     }
 
-    function testETHMetadata() public view{
+    function testETHMetadata() public view {
         assertEq(ETH.name(), "EthereumToken");
         assertEq(ETH.symbol(), "ETH");
         assertEq(ETH.decimals(), 18);
     }
 
-    function testUSDCMetadata() public view{
+    function testUSDCMetadata() public view {
         assertEq(USDC.name(), "DollarToken");
         assertEq(USDC.symbol(), "USDC");
         assertEq(USDC.decimals(), 18);
     }
 
-    function testETHInitialSupply() public view{
+    function testETHInitialSupply() public view {
         assertEq(ETH.totalSupply(), 100000 ether);
         assertEq(ETH.balanceOf(deployer), 100000 ether);
     }
@@ -45,27 +45,26 @@ contract UniswapV2UnitTest is Test {
         assertEq(USDC.balanceOf(deployer), 100000000 ether);
     }
 
-    function testFactoryFeeSetter() public view{
+    function testFactoryFeeSetter() public view {
         assertEq(factory.feeToSetter(), deployer);
-        assertEq(factory.feeTo(),address(0));
+        assertEq(factory.feeTo(), address(0));
         assertEq(factory.allPairsLength(), 1);
         assertEq(factory.allPairs(0), address(pair));
     }
 
-    function testGetPairAfterCreation() public view{
+    function testGetPairAfterCreation() public view {
         // Pair already created in deploy script
         address pair1 = factory.getPair(address(ETH), address(USDC));
         address pair2 = factory.getPair(address(USDC), address(ETH));
 
         assertEq(pair1, address(pair));
-        assertEq(pair2,address(pair));
+        assertEq(pair2, address(pair));
     }
 
-    function testPairInitialVariables() public view{
-        assertEq(pair.factory(),address(factory));
-        assertEq(pair.token1(),address(ETH));
-        assertEq(pair.token0(),address(USDC));
-        assertEq(pair.MINIMUM_LIQUIDITY(),1000);
+    function testPairInitialVariables() public view {
+        assertEq(pair.factory(), address(factory));
+        assertEq(pair.token1(), address(ETH));
+        assertEq(pair.token0(), address(USDC));
+        assertEq(pair.MINIMUM_LIQUIDITY(), 1000);
     }
-
 }

@@ -9,8 +9,8 @@ import "./interfaces/IUniswapV2Factory.sol";
 import "./interfaces/IUniswapV2Callee.sol";
 import "./libraries/Math.sol";
 
-contract UniswapV2Pair is  UniswapV2ERC20,IUniswapV2Pair {
-    uint public constant MINIMUM_LIQUIDITY = 10 ** 3 ;
+contract UniswapV2Pair is UniswapV2ERC20, IUniswapV2Pair {
+    uint public constant MINIMUM_LIQUIDITY = 10 ** 3;
     bytes4 private constant SELECTOR =
         bytes4(keccak256(bytes("transfer(address,uint256)")));
 
@@ -57,8 +57,6 @@ contract UniswapV2Pair is  UniswapV2ERC20,IUniswapV2Pair {
             "UniswapV2:Transfer_Failed"
         );
     }
-
-
 
     constructor() {
         factory = msg.sender;
@@ -160,94 +158,123 @@ contract UniswapV2Pair is  UniswapV2ERC20,IUniswapV2Pair {
         emit Mint(msg.sender, amount0, amount1);
     }
 
-//burn is called when you want the tokens using lp token, in that case the token from reserve is transferred and lp token you own is burned
-function burn(address to) external lock returns (uint amount0, uint amount1) {
-    (uint112 _reserve0, uint112 _reserve1, ) = getReserves(); //save gas as sload for this bundle is done only once (tttal cost =3x2100 though)
-    address _token0 = token0; //saves gas
-    address _token1 = token1; //saves gas
+    //burn is called when you want the tokens using lp token, in that case the token from reserve is transferred and lp token you own is burned
+    function burn(
+        address to
+    ) external lock returns (uint amount0, uint amount1) {
+        (uint112 _reserve0, uint112 _reserve1, ) = getReserves(); //save gas as sload for this bundle is done only once (tttal cost =3x2100 though)
+        address _token0 = token0; //saves gas
+        address _token1 = token1; //saves gas
 
-    uint balance0 = IERC20(token0).balanceOf(address(this)); //address of smart contract is getting called becaue its the router that first add lp token in contract then burns using burn
-    uint balance1 = IERC20(token1).balanceOf(address(this));
-    uint liquidity = balanceOf[address(this)]; //number of lptoken
+        uint balance0 = IERC20(token0).balanceOf(address(this)); //address of smart contract is getting called becaue its the router that first add lp token in contract then burns using burn
+        uint balance1 = IERC20(token1).balanceOf(address(this));
+        uint liquidity = balanceOf[address(this)]; //number of lptoken
 
-    bool feeOn = _mintFee(_reserve0, _reserve1);
-    uint _totalSupply = totalSupply;
-    amount0 = (liquidity * balance0) / _totalSupply;
-    amount1 = (liquidity * balance1) / _totalSupply;
+        bool feeOn = _mintFee(_reserve0, _reserve1);
+        uint _totalSupply = totalSupply;
+        amount0 = (liquidity * balance0) / _totalSupply;
+        amount1 = (liquidity * balance1) / _totalSupply;
 
-    require(
-        amount0 > 0 && amount1 > 0,
-        "UniswapV2:INSUFFICIENT_LIQUIDITY_BURNED"
-    );
-    _burn(address(this), liquidity);
-    _safeTransfer(_token0, to, amount0);
-    _safeTransfer(_token1, to, amount1);
+        require(
+            amount0 > 0 && amount1 > 0,
+            "UniswapV2:INSUFFICIENT_LIQUIDITY_BURNED"
+        );
+        _burn(address(this), liquidity);
+        _safeTransfer(_token0, to, amount0);
+        _safeTransfer(_token1, to, amount1);
 
-    _update(balance0, balance1, _reserve0, _reserve1);
-    if (feeOn) kLast = uint(reserve0) * uint(reserve1);
+        _update(balance0, balance1, _reserve0, _reserve1);
+        if (feeOn) kLast = uint(reserve0) * uint(reserve1);
 
-    emit Burn(msg.sender, amount0, amount1, to);
-}
-
-
-function swap(uint amount0Out,uint amount1Out,address to,bytes calldata data) external lock{
-    require(amount0Out>0 || amount1Out>0 ,'UniswapV2:INSUFFICIENT_OUTPUT_AMOUNT');
-    (uint112 _reserve0, uint112 _reserve1,)=getReserves();
-    require(amount0Out<_reserve0 && amount1Out<_reserve1,'UniswapV2:INSUFFICIENT_LIQUIDITY');
-
-
-    uint balance0;
-    uint balance1;
-
-    address _token0=token0;
-    address _token1=token1;
-    require(to!=_token0 && to!=_token1,"UniswapV2:INVALID_TO");
-
-    if(amount0Out>0) _safeTransfer(_token0,to,amount0Out);
-    if(amount1Out>0) _safeTransfer(_token1,to,amount1Out);
-
-    if(data.length>0) IUniswapV2Callee(to).uniswapV2Call(msg.sender,amount0Out,amount1Out,data);
-
-    balance0=IERC20(_token0).balanceOf(address(this));
-    balance1=IERC20(_token1).balanceOf(address(this));
-
-    uint amount0In=balance0>_reserve0-amount0Out?balance0-(_reserve0-amount0Out):0;
-    uint amount1In=balance1>_reserve1-amount1Out?balance1-(_reserve1-amount1Out):0;
-
-
-    require(amount0In>0 || amount1In>0 ,"UniswapV2:INSUFFICIENT_INPUT_AMOUNT");
-
-    unchecked{
-        uint balance0Adjusted=balance0*1000-amount0In*3; //frontend will ask for some extra amount if its not extra the call will fail
-        uint balance1Adjusted=balance1*1000-amount1In*3;
-
-        require(balance0Adjusted*balance1Adjusted>=uint(_reserve0)*uint(_reserve1)*(1000**2),"UniswapV2:K");
+        emit Burn(msg.sender, amount0, amount1, to);
     }
 
+    function swap(
+        uint amount0Out,
+        uint amount1Out,
+        address to,
+        bytes calldata data
+    ) external lock {
+        require(
+            amount0Out > 0 || amount1Out > 0,
+            "UniswapV2:INSUFFICIENT_OUTPUT_AMOUNT"
+        );
+        (uint112 _reserve0, uint112 _reserve1, ) = getReserves();
+        require(
+            amount0Out < _reserve0 && amount1Out < _reserve1,
+            "UniswapV2:INSUFFICIENT_LIQUIDITY"
+        );
 
-    _update(balance0,balance1,_reserve0,_reserve1);
-    emit Swap(msg.sender,amount0In,amount1In,to);
+        uint balance0;
+        uint balance1;
 
+        address _token0 = token0;
+        address _token1 = token1;
+        require(to != _token0 && to != _token1, "UniswapV2:INVALID_TO");
 
+        if (amount0Out > 0) _safeTransfer(_token0, to, amount0Out);
+        if (amount1Out > 0) _safeTransfer(_token1, to, amount1Out);
 
+        if (data.length > 0)
+            IUniswapV2Callee(to).uniswapV2Call(
+                msg.sender,
+                amount0Out,
+                amount1Out,
+                data
+            );
+
+        balance0 = IERC20(_token0).balanceOf(address(this));
+        balance1 = IERC20(_token1).balanceOf(address(this));
+
+        uint amount0In = balance0 > _reserve0 - amount0Out
+            ? balance0 - (_reserve0 - amount0Out)
+            : 0;
+        uint amount1In = balance1 > _reserve1 - amount1Out
+            ? balance1 - (_reserve1 - amount1Out)
+            : 0;
+
+        require(
+            amount0In > 0 || amount1In > 0,
+            "UniswapV2:INSUFFICIENT_INPUT_AMOUNT"
+        );
+
+        unchecked {
+            uint balance0Adjusted = balance0 * 1000 - amount0In * 3; //frontend will ask for some extra amount if its not extra the call will fail
+            uint balance1Adjusted = balance1 * 1000 - amount1In * 3;
+
+            require(
+                balance0Adjusted * balance1Adjusted >=
+                    uint(_reserve0) * uint(_reserve1) * (1000 ** 2),
+                "UniswapV2:K"
+            );
+        }
+
+        _update(balance0, balance1, _reserve0, _reserve1);
+        emit Swap(msg.sender, amount0In, amount1In, to);
+    }
+
+    function skim(address to) external lock {
+        address _token0 = token0;
+        address _token1 = token1;
+        _safeTransfer(
+            _token0,
+            to,
+            IERC20(_token0).balanceOf(address(this)) - reserve0
+        );
+        _safeTransfer(
+            _token1,
+            to,
+            IERC20(_token1).balanceOf(address(this)) - reserve1
+        );
+    }
+
+    // called to sync reserve  with balance
+    function sync() external lock {
+        _update(
+            IERC20(token0).balanceOf(address(this)),
+            IERC20(token1).balanceOf(address(this)),
+            reserve0,
+            reserve1
+        );
+    }
 }
-
-
-function skim(address to ) external lock{
-    address _token0=token0;
-    address _token1=token1;
-    _safeTransfer(_token0,to,IERC20(_token0).balanceOf(address(this))-reserve0);
-    _safeTransfer(_token1,to,IERC20(_token1).balanceOf(address(this))-reserve1);
-
-
-
-}
-
-// called to sync reserve  with balance
-function sync() external lock{
-    _update(IERC20(token0).balanceOf(address(this)),IERC20(token1).balanceOf(address(this)),reserve0,reserve1);
-}
-}
-
-
-
