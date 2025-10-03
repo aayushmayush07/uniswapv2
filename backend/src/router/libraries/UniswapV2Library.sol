@@ -98,7 +98,7 @@ library UniswapV2Library {
         );
         uint numerator = reserveIn * amountOut * 1000;
         uint denominator = (reserveOut - amountOut) * 997;
-        amountIn = (numerator / denominator) + 1;
+        amountIn = (numerator / denominator) + 1; //its a way of rounding errors
     }
 
     // performs chained getAmountOut calculations on any number of pairs
@@ -138,4 +138,6 @@ library UniswapV2Library {
             amounts[i - 1] = getAmountIn(amounts[i], reserveIn, reserveOut);
         }
     }
+
+    
 }
