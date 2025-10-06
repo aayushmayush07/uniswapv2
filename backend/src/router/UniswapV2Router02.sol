@@ -5,11 +5,11 @@ import "../core/interfaces/IUniswapV2Factory.sol";
 
 import "./libraries/TransferHelper.sol";
 import "./libraries/UniswapV2Library.sol";
-import "./interfaces/IUniswapV2Router01.sol";
+import "./interfaces/IUniswapV2Router02.sol" as IRouterInterface;
 import "./interfaces/IERC20.sol";
 import "./interfaces/IWETH.sol";
 
-contract UniswapV2Router01 is IUniswapV2Router01 {
+contract UniswapV2Router02 is IRouterInterface.IUniswapV2Router02 {
     address public immutable override factory;
     address public immutable override WETH;
 
@@ -284,7 +284,7 @@ contract UniswapV2Router01 is IUniswapV2Router01 {
         address[] calldata path,
         address to,
         uint deadline
-    ) external override ensure(deadline) returns (uint[] memory amounts) {
+    ) external view override ensure(deadline) returns (uint[] memory amounts) {
         amounts = UniswapV2Library.getAmountsOut(factory, amountIn, path);
     }
 
@@ -414,31 +414,38 @@ contract UniswapV2Router01 is IUniswapV2Router01 {
         if (msg.value > amounts[0])
             TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]); // refund dust eth, if any
     }
+
     // ***** SWAPS — supporting fee-on-transfer tokens *****
-    function _swapSupportingFeeOnTransferTokens(address[] memory path, address _to)
-        internal
-    {
+    function _swapSupportingFeeOnTransferTokens(
+        address[] memory path,
+        address _to
+    ) internal {
         for (uint i; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
-            (address token0,) = UniswapV2Library.sortTokens(input, output);
+            (address token0, ) = UniswapV2Library.sortTokens(input, output);
 
-            IUniswapV2Pair pair =
-                IUniswapV2Pair(UniswapV2Library.pairFor(factory, input, output));
+            IUniswapV2Pair pair = IUniswapV2Pair(
+                UniswapV2Library.pairFor(factory, input, output)
+            );
 
-            (uint reserve0, uint reserve1,) = pair.getReserves();
-            (uint reserveInput, uint reserveOutput) =
-                input == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
+            (uint reserve0, uint reserve1, ) = pair.getReserves();
+            (uint reserveInput, uint reserveOutput) = input == token0
+                ? (reserve0, reserve1)
+                : (reserve1, reserve0);
 
             // how much actually arrived in pair (handles fee-on-transfer)
             uint balanceInput = IERC20(input).balanceOf(address(pair));
             uint amountInput = balanceInput - reserveInput;
 
             uint amountOutput = UniswapV2Library.getAmountOut(
-                amountInput, reserveInput, reserveOutput
+                amountInput,
+                reserveInput,
+                reserveOutput
             );
 
-            (uint amount0Out, uint amount1Out) =
-                input == token0 ? (uint(0), amountOutput) : (amountOutput, uint(0));
+            (uint amount0Out, uint amount1Out) = input == token0
+                ? (uint(0), amountOutput)
+                : (amountOutput, uint(0));
 
             address to = i < path.length - 2
                 ? UniswapV2Library.pairFor(factory, output, path[i + 2])
@@ -454,21 +461,21 @@ contract UniswapV2Router01 is IUniswapV2Router01 {
         address[] calldata path,
         address to,
         uint deadline
-    )
-        external
-        
-        ensure(deadline)
-    {
+    ) external ensure(deadline) {
         // push full `amountIn` to first pair
         TransferHelper.safeTransferFrom(
-            path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amountIn
+            path[0],
+            msg.sender,
+            UniswapV2Library.pairFor(factory, path[0], path[1]),
+            amountIn
         );
 
         uint balanceBefore = IERC20(path[path.length - 1]).balanceOf(to);
         _swapSupportingFeeOnTransferTokens(path, to);
 
         require(
-            IERC20(path[path.length - 1]).balanceOf(to) - balanceBefore >= amountOutMin,
+            IERC20(path[path.length - 1]).balanceOf(to) - balanceBefore >=
+                amountOutMin,
             "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
         );
     }
@@ -478,26 +485,25 @@ contract UniswapV2Router01 is IUniswapV2Router01 {
         address[] calldata path,
         address to,
         uint deadline
-    )
-        external
-        
-        payable
-        ensure(deadline)
-    {
+    ) external payable ensure(deadline) {
         require(path[0] == WETH, "UniswapV2Router: INVALID_PATH");
 
         uint amountIn = msg.value;
 
         IWETH(WETH).deposit{value: amountIn}();
-        assert(IWETH(WETH).transfer(
-            UniswapV2Library.pairFor(factory, path[0], path[1]), amountIn
-        ));
+        assert(
+            IWETH(WETH).transfer(
+                UniswapV2Library.pairFor(factory, path[0], path[1]),
+                amountIn
+            )
+        );
 
         uint balanceBefore = IERC20(path[path.length - 1]).balanceOf(to);
         _swapSupportingFeeOnTransferTokens(path, to);
 
         require(
-            IERC20(path[path.length - 1]).balanceOf(to) - balanceBefore >= amountOutMin,
+            IERC20(path[path.length - 1]).balanceOf(to) - balanceBefore >=
+                amountOutMin,
             "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
         );
     }
@@ -508,21 +514,23 @@ contract UniswapV2Router01 is IUniswapV2Router01 {
         address[] calldata path,
         address to,
         uint deadline
-    )
-        external
-        
-        ensure(deadline)
-    {
+    ) external ensure(deadline) {
         require(path[path.length - 1] == WETH, "UniswapV2Router: INVALID_PATH");
 
         TransferHelper.safeTransferFrom(
-            path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amountIn
+            path[0],
+            msg.sender,
+            UniswapV2Library.pairFor(factory, path[0], path[1]),
+            amountIn
         );
 
         _swapSupportingFeeOnTransferTokens(path, address(this));
 
         uint amountOut = IERC20(WETH).balanceOf(address(this));
-        require(amountOut >= amountOutMin, "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        require(
+            amountOut >= amountOutMin,
+            "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
+        );
 
         IWETH(WETH).withdraw(amountOut);
         TransferHelper.safeTransferETH(to, amountOut);

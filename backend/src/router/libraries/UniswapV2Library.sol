@@ -31,7 +31,7 @@ library UniswapV2Library {
                             hex"ff",
                             factory,
                             keccak256(abi.encodePacked(token0, token1)),
-                            hex"96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f" // init code hash
+                            hex"a7c24ed284bef8b6ae21706bb0583c7fe121cbbb238fb341063dca1a48c9cc43" // init code hash
                         )
                     )
                 )
@@ -138,6 +138,4 @@ library UniswapV2Library {
             amounts[i - 1] = getAmountIn(amounts[i], reserveIn, reserveOut);
         }
     }
-
-    
 }

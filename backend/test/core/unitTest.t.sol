@@ -2,7 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/Test.sol";
-import "../script/DeployUniswapV2.s.sol"; // import the script
+import "../../script/core/DeployUniswapV2.s.sol"; // import the script
 
 contract UniswapV2UnitTest is Test {
     DeployUniswapV2 deploy;

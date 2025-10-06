@@ -2,7 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/Test.sol";
-import "../script/DeployUniswapV2.s.sol"; // reuse your deploy script
+import "../../script/core/DeployUniswapV2.s.sol"; // reuse your deploy script
 
 contract UniswapV2IntegrationTest is Test {
     DeployUniswapV2 deploy;
@@ -219,7 +219,6 @@ contract UniswapV2IntegrationTest is Test {
         );
 
         vm.stopPrank();
-
 
         // Aayush swaps 10 ETH -> USDC
         vm.startPrank(aayushSwapper);
