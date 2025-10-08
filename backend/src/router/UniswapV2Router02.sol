@@ -197,7 +197,7 @@ contract UniswapV2Router02 is IRouterInterface.IUniswapV2Router02 {
         uint amountBMin,
         address to,
         uint deadline,
-        bool approveMax,
+        bool approveMax, //if its true it will give unlimited spend allowance to the router, of false approve will be given equal to liquidity
         uint8 v,
         bytes32 r,
         bytes32 s
@@ -284,10 +284,14 @@ contract UniswapV2Router02 is IRouterInterface.IUniswapV2Router02 {
         address[] calldata path,
         address to,
         uint deadline
-    ) external view override ensure(deadline) returns (uint[] memory amounts) {
+    ) external virtual override ensure(deadline) returns (uint[] memory amounts) {
         amounts = UniswapV2Library.getAmountsOut(factory, amountIn, path);
+        require(amounts[amounts.length - 1] >= amountOutMin, 'UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT');
+        TransferHelper.safeTransferFrom(
+            path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]
+        );
+        _swap(amounts, path, to);
     }
-
     function swapTokensForExactTokens(
         uint amountOut,
         uint amountInMax,

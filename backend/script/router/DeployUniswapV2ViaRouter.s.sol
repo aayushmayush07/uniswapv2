@@ -18,10 +18,10 @@ contract DeployUniswapV2ViaRouter is Script {
 
     Router.UniswapV2Router02 public router;
 
+    uint256 public deployerPrivateKey;
 
     function run() external {
         uint256 chainId = block.chainid;
-        uint256 deployerPrivateKey;
 
         if (chainId == 1) {
             console2.log("Deploying to Ethereum Mainnet");
@@ -54,13 +54,12 @@ contract DeployUniswapV2ViaRouter is Script {
         router = new Router.UniswapV2Router02(address(factory), address(weth));
 
         vm.stopBroadcast();
-        
+
         console2.log("WETH deployed at:", address(factory));
         console2.log("TokenA deployed at:", address(tokenA));
         console2.log("TokenB deployed at:", address(tokenB));
 
         console2.log("Deployer address:", deployer);
         console2.log("Router address:", address(router));
-      
     }
 }
