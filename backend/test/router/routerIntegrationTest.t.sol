@@ -4,7 +4,7 @@ pragma solidity ^0.8.18;
 import "forge-std/Test.sol";
 import "../../script/router/DeployUniswapV2ViaRouter.s.sol"; // import the script
 
-contract UniswapV2UnitTestViaRouter is Test {
+contract UniswapV2IntegrationTestViaRouter is Test {
     DeployUniswapV2ViaRouter deploy;
     UniswapV2Factory factory;
     MockERC20 USDC;
@@ -438,6 +438,371 @@ contract UniswapV2UnitTestViaRouter is Test {
         vm.stopPrank();
 
         assertEq(post_balance_AK_musk - pre_balance_AK_musk, 10 ether);
+    }
+
+    function testSwapExactTokensForETH() public {
+        vm.startPrank(deployer);
+
+        // 1️⃣ Add liquidity: AK/WETH
+        AK.approve(address(router), type(uint256).max);
+
+        router.addLiquidityETH{value: 10 ether}(
+            address(AK),
+            100 ether, // AK tokens
+            90 ether,
+            9 ether,
+            deployer,
+            _getDeadlineAfter20Minutes()
+        );
+
+        vm.stopPrank();
+
+        // 2️⃣ Musk swaps AK → ETH
+        vm.startPrank(musk);
+
+        IERC20(AK).approve(address(router), type(uint256).max);
+
+        // Get pre ETH balance
+        uint pre_eth_balance = musk.balance;
+
+        // Path: AK → WETH
+        address[] memory path = new address[](2);
+        path[0] = address(AK);
+        path[1] = address(weth);
+
+        // Perform swap
+        router.swapExactTokensForETH(
+            10 ether, // exact AK in
+            0, // minimum ETH out (accept any)
+            path,
+            musk, // recipient
+            _getDeadlineAfter20Minutes()
+        );
+
+        // Post ETH balance
+        uint post_eth_balance = musk.balance;
+        vm.stopPrank();
+
+        // 3️⃣ Assert Musk received ETH
+        assertGt(post_eth_balance, pre_eth_balance, "ETH not received");
+
+        console2.log(
+            "ETH received from AKETH swap:",
+            post_eth_balance - pre_eth_balance
+        );
+    }
+
+    function testSwapExactTokensForTokensMultiPath() public {
+        // 1️⃣ Deploy an extra token: RAMI
+        vm.startPrank(deployer);
+        MockERC20 RAMI = new MockERC20("RamiCoin", "RAMI", 1_000_000 ether);
+
+        // Approvals
+        USDC.approve(address(router), type(uint256).max);
+        AK.approve(address(router), type(uint256).max);
+        RAMI.approve(address(router), type(uint256).max);
+
+        // 2️⃣ Add liquidity for AK/USDC
+        router.addLiquidity(
+            address(AK),
+            address(USDC),
+            100 ether, // AK
+            1000 ether, // USDC
+            90 ether,
+            900 ether,
+            address(deployer),
+            _getDeadlineAfter20Minutes()
+        );
+
+        // 3️⃣ Add liquidity for USDC/RAMI
+        router.addLiquidity(
+            address(USDC),
+            address(RAMI),
+            1000 ether, // USDC
+            2000 ether, // RAMI
+            900 ether,
+            1800 ether,
+            address(deployer),
+            _getDeadlineAfter20Minutes()
+        );
+
+        vm.stopPrank();
+
+        // 4️⃣ Musk swaps AK → RAMI through USDC
+        uint pre_balance_RAMIMusk = IERC20(address(RAMI)).balanceOf(musk);
+        vm.startPrank(musk);
+
+        // Musk gets some AK to start
+        AK.transfer(musk, 10 ether);
+        IERC20(address(AK)).approve(address(router), type(uint256).max);
+
+        address[] memory path = new address[](3);
+        path[0] = address(AK);
+        path[1] = address(USDC);
+        path[2] = address(RAMI);
+
+        router.swapExactTokensForTokens(
+            10 ether, // exact AK in
+            0, // accept any RAMI out > 0
+            path,
+            musk,
+            _getDeadlineAfter20Minutes()
+        );
+
+        vm.stopPrank();
+        uint post_balance_RAMIMusk = IERC20(address(RAMI)).balanceOf(musk);
+
+        // 5️⃣ Assertion: Musk should receive some RAMI
+        assertGt(
+            post_balance_RAMIMusk,
+            pre_balance_RAMIMusk,
+            "RAMI not received"
+        );
+    }
+
+    function testSwapExactTokensForTokensViaETHMultiPath() public {
+        vm.startPrank(deployer);
+
+        // 1️⃣ Deploy an extra token: RAMI
+        MockERC20 RAMI = new MockERC20("RamiCoin", "RAMI", 1_000_000 ether);
+
+        // Approvals for tokens and ETH
+        AK.approve(address(router), type(uint256).max);
+        RAMI.approve(address(router), type(uint256).max);
+
+        // 2️⃣ Add liquidity: AK/WETH
+        router.addLiquidityETH{value: 10 ether}(
+            address(AK),
+            100 ether, // AK deposited
+            90 ether,
+            9 ether,
+            deployer,
+            _getDeadlineAfter20Minutes()
+        );
+
+        // 3️⃣ Add liquidity: RAMI/WETH
+        router.addLiquidityETH{value: 10 ether}(
+            address(RAMI),
+            100 ether, // RAMI deposited
+            90 ether,
+            9 ether,
+            deployer,
+            _getDeadlineAfter20Minutes()
+        );
+
+        vm.stopPrank();
+
+        // 4️⃣ Musk swaps AK → WETH → RAMI
+        uint pre_balance_RAMIMusk = IERC20(address(RAMI)).balanceOf(musk);
+        vm.startPrank(musk);
+
+        // Musk gets AK
+        vm.deal(musk, 5 ether);
+        IERC20(AK).transfer(musk, 10 ether);
+        IERC20(AK).approve(address(router), type(uint256).max);
+
+        // Path: AK → WETH → RAMI
+        address[] memory path = new address[](3);
+        path[0] = address(AK);
+        path[1] = address(weth);
+        path[2] = address(RAMI);
+
+        router.swapExactTokensForTokens(
+            10 ether, // AK in
+            0, // any RAMI out > 0
+            path,
+            musk,
+            _getDeadlineAfter20Minutes()
+        );
+
+        vm.stopPrank();
+        uint post_balance_RAMIMusk = IERC20(address(RAMI)).balanceOf(musk);
+
+        // 5️⃣ Assertion
+        assertGt(
+            post_balance_RAMIMusk,
+            pre_balance_RAMIMusk,
+            "RAMI not received"
+        );
+
+        console2.log(
+            "RAMI received after AKETHRAMI swap:",
+            post_balance_RAMIMusk - pre_balance_RAMIMusk
+        );
+    }
+
+    function testSwapTokensForExactETH_MultiPath() public {
+        vm.startPrank(deployer);
+
+        // 1️⃣ Add liquidity for AK–USDC
+        AK.approve(address(router), type(uint256).max);
+        USDC.approve(address(router), type(uint256).max);
+
+        router.addLiquidity(
+            address(AK),
+            address(USDC),
+            100 ether, // AK
+            1000 ether, // USDC
+            90 ether,
+            900 ether,
+            deployer,
+            _getDeadlineAfter20Minutes()
+        );
+
+        // 2️⃣ Add liquidity for USDC–WETH
+        router.addLiquidityETH{value: 20 ether}(
+            address(USDC),
+            1000 ether, // USDC
+            900 ether,
+            18 ether,
+            deployer,
+            _getDeadlineAfter20Minutes()
+        );
+
+        vm.stopPrank();
+
+        // 3️⃣ Setup Musk for the swap: AK → USDC → WETH → ETH
+        vm.startPrank(musk);
+
+        IERC20(AK).approve(address(router), type(uint256).max);
+
+        uint preEthBalance = musk.balance;
+
+        // Path: AK → USDC → WETH
+        address[] memory path = new address[](3);
+        path[0] = address(AK);
+        path[1] = address(USDC);
+        path[2] = address(weth);
+
+        // 4️⃣ Execute swap: Musk swaps AK for EXACT ETH
+        uint ethOutTarget = 2 ether; // Musk wants exactly 2 ETH
+        router.swapTokensForExactETH(
+            ethOutTarget, // exact ETH out
+            100 ether, // max AK input Musk is willing to spend
+            path,
+            musk, // receive ETH directly
+            _getDeadlineAfter20Minutes()
+        );
+
+        vm.stopPrank();
+
+        // 5️⃣ Verify results
+        uint postEthBalance = musk.balance;
+        assertGt(postEthBalance, preEthBalance, "ETH not received");
+        assertApproxEqAbs(
+            postEthBalance - preEthBalance,
+            2 ether,
+            0.001 ether,
+            "ETH amount mismatch"
+        );
+
+        console2.log("ETH received:", postEthBalance - preEthBalance);
+    }
+
+    function testSwapETHForExactTokens_SinglePath() public {
+        vm.startPrank(deployer);
+
+        // 1️⃣ Add liquidity for WETH–AK pair
+        AK.approve(address(router), type(uint256).max);
+
+        router.addLiquidityETH{value: 10 ether}(
+            address(AK),
+            100 ether, // AK
+            90 ether,
+            9 ether,
+            deployer,
+            _getDeadlineAfter20Minutes()
+        );
+
+        vm.stopPrank();
+
+        // 2️⃣ Musk swaps ETH → AK
+        vm.startPrank(musk);
+        uint preAKBalance = IERC20(AK).balanceOf(musk);
+
+        // Path: WETH → AK
+        address[] memory path = new address[](2);
+        path[0] = address(weth);
+        path[1] = address(AK);
+
+        // Musk wants exactly 10 AK, sends up to 2 ETH
+        router.swapETHForExactTokens{value: 2 ether}(
+            10 ether, // amount of AK desired
+            path,
+            musk,
+            _getDeadlineAfter20Minutes()
+        );
+
+        vm.stopPrank();
+
+        uint postAKBalance = IERC20(AK).balanceOf(musk);
+        assertEq(postAKBalance - preAKBalance, 10 ether, "AK not received");
+
+        console2.log(
+            "AK received from ETHAK swap:",
+            postAKBalance - preAKBalance
+        );
+    }
+
+    function testSwapETHForExactTokens_MultiPath() public {
+        vm.startPrank(deployer);
+
+        // 1️⃣ Add liquidity for USDC–WETH pair
+        USDC.approve(address(router), type(uint256).max);
+
+        router.addLiquidityETH{value: 10 ether}(
+            address(USDC),
+            1000 ether, // USDC
+            900 ether,
+            9 ether,
+            deployer,
+            _getDeadlineAfter20Minutes()
+        );
+
+        // 2️⃣ Add liquidity for USDC–AK pair
+        USDC.approve(address(router), type(uint256).max);
+        AK.approve(address(router), type(uint256).max);
+
+        router.addLiquidity(
+            address(USDC),
+            address(AK),
+            1000 ether, // USDC
+            100 ether, // AK
+            900 ether,
+            90 ether,
+            deployer,
+            _getDeadlineAfter20Minutes()
+        );
+
+        vm.stopPrank();
+
+        // 3️⃣ Musk swaps ETH → USDC → AK
+        vm.startPrank(musk);
+        uint preAKBalance = IERC20(AK).balanceOf(musk);
+
+        // Path: WETH → USDC → AK
+        address[] memory path = new address[](3);
+        path[0] = address(weth);
+        path[1] = address(USDC);
+        path[2] = address(AK);
+
+        // Musk wants exactly 5 AK, sends up to 3 ETH
+        router.swapETHForExactTokens{value: 3 ether}(
+            5 ether, // exact AK out
+            path,
+            musk,
+            _getDeadlineAfter20Minutes()
+        );
+
+        vm.stopPrank();
+
+        uint postAKBalance = IERC20(AK).balanceOf(musk);
+        assertEq(postAKBalance - preAKBalance, 5 ether, "AK not received");
+
+        console2.log(
+            "AK received from ETHUSDCAK swap:",
+            postAKBalance - preAKBalance
+        );
     }
 
     function _signForApprovalByDeployer(
