@@ -55,7 +55,8 @@ contract DeployUniswapV2ViaRouter is Script {
 
         vm.stopBroadcast();
 
-        console2.log("WETH deployed at:", address(factory));
+        console2.log("factory deployed at:", address(factory));
+        console2.log("WETH deployed at:", address(weth));
         console2.log("TokenA deployed at:", address(tokenA));
         console2.log("TokenB deployed at:", address(tokenB));
 
